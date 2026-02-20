@@ -42,6 +42,8 @@ export default function Home() {
   const [currentPath, setCurrentPath] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [selectedFileContent, setSelectedFileContent] = useState<string>("");
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [selectedFolderFiles, setSelectedFolderFiles] = useState<string[]>([]);
   const [showFilePicker, setShowFilePicker] = useState(false);
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [loadingContents, setLoadingContents] = useState(false);
@@ -192,10 +194,39 @@ export default function Home() {
       const data = await res.json();
       setSelectedFile(path);
       setSelectedFileContent(data.content);
+      setSelectedFolder(null);
+      setSelectedFolderFiles([]);
       setCode(data.content);
       setShowFilePicker(false);
     } catch (error) {
       console.error("Failed to fetch file", error);
+    }
+  };
+
+  const selectFolder = async () => {
+    if (!githubUserId || !selectedRepo) return;
+    
+    setLoadingContents(true);
+    try {
+      const [owner, repoName] = selectedRepo.full_name.split("/");
+      const folderPath = currentPath.join("/");
+      const res = await fetch(
+        `${API_URL}/auth/github/repos/${githubUserId}/${owner}/${repoName}/folder?path=${folderPath}`
+      );
+      const data = await res.json();
+      
+      if (data.content) {
+        setSelectedFolder(folderPath || selectedRepo.name);
+        setSelectedFolderFiles(data.files || []);
+        setSelectedFile(null);
+        setSelectedFileContent("");
+        setCode(data.content);
+        setShowFilePicker(false);
+      }
+    } catch (error) {
+      console.error("Failed to fetch folder", error);
+    } finally {
+      setLoadingContents(false);
     }
   };
 
@@ -356,7 +387,7 @@ export default function Home() {
       case "project":
         return !idea.trim();
       case "code-review":
-        return !code.trim() && !selectedFile;
+        return !code.trim() && !selectedFile && !selectedFolder;
       case "qa-tests":
         return !featureDescription.trim();
       case "bug-analysis":
@@ -449,21 +480,25 @@ export default function Home() {
                   <div>
                     <h3 className="font-medium">Select from GitHub</h3>
                     <p className="text-sm text-[var(--muted)]">
-                      {selectedFile
-                        ? `Selected: ${selectedFile}`
-                        : "Choose a file from your repositories"}
+                      {selectedFolder
+                        ? `Folder: ${selectedFolder} (${selectedFolderFiles.length} files)`
+                        : selectedFile
+                        ? `File: ${selectedFile}`
+                        : "Choose a file or folder from your repositories"}
                     </p>
                   </div>
                   <button onClick={openFilePicker} className="btn-secondary">
-                    {selectedFile ? "Change File" : "Browse Files"}
+                    {selectedFile || selectedFolder ? "Change" : "Browse"}
                   </button>
                 </div>
                 
-                {selectedFile && (
+                {(selectedFile || selectedFolder) && (
                   <button
                     onClick={() => {
                       setSelectedFile(null);
                       setSelectedFileContent("");
+                      setSelectedFolder(null);
+                      setSelectedFolderFiles([]);
                       setCode("");
                     }}
                     className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
@@ -515,7 +550,13 @@ export default function Home() {
                   </div>
                   <textarea
                     className="input-field font-mono text-sm"
-                    placeholder={selectedFile ? "File content loaded from GitHub..." : "Paste your code here or select from GitHub..."}
+                    placeholder={
+                      selectedFolder 
+                        ? `Folder content loaded (${selectedFolderFiles.length} files)...` 
+                        : selectedFile 
+                        ? "File content loaded from GitHub..." 
+                        : "Paste your code here or select from GitHub..."
+                    }
                     rows={12}
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
@@ -727,6 +768,20 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="space-y-1">
+                  {/* Select Current Folder Button */}
+                  <button
+                    onClick={selectFolder}
+                    className="w-full text-left p-3 mb-2 rounded-lg border border-[var(--foreground)] bg-[var(--hover)] hover:bg-[var(--foreground)] hover:text-[var(--background)] transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      <span className="font-medium">Select this folder</span>
+                      <span className="text-xs opacity-70">(all code files)</span>
+                    </div>
+                  </button>
+
                   <button
                     onClick={handleGoBack}
                     className="file-item w-full text-left text-[var(--muted)]"
