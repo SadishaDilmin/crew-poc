@@ -33,7 +33,7 @@ interface FileItem {
 }
 
 export default function Home() {
-  // GitHub Auth State
+  // GitHub Auth Stat
   const [githubUser, setGithubUser] = useState<GitHubUser | null>(null);
   const [githubUserId, setGithubUserId] = useState<string | null>(null);
   const [repos, setRepos] = useState<Repo[]>([]);
