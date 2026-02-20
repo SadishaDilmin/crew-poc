@@ -762,6 +762,10 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      <footer className="max-w-6xl mx-auto px-6 pb-10 pt-6 text-xs text-[var(--muted)] border-t border-[var(--border)]">
+        Developed by Sadisha
+      </footer>
     </main>
   );
 }
